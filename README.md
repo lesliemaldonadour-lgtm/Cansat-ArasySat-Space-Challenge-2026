@@ -27,8 +27,3 @@ Repositorio del proyecto **ArasySat**.
 | [🔩 Componentes](Componentes/Componentes.md) | Lista de componentes utilizados |
 | [📚 Documentación](Documentaci%C3%B3n/) | Datasheets, diseño de la lata y diseño del circuito |
 | [🖥️ Interfaz](Interfaz/Interfaz.md) | Estación terrestre (panel de telemetría) |
-
-### 📚 Documentación
-- [Datasheets](Documentaci%C3%B3n/Datasheets/Datasheets.md)
-- [Diseño de la lata](Documentaci%C3%B3n/Dise%C3%B1o%20de%20la%20lata/Dise%C3%B1o%20de%20la%20lata.md)
-- [Diseño del circuito](Documentaci%C3%B3n/Dise%C3%B1o%20del%20circuito/Dise%C3%B1o%20del%20circuito.md)
