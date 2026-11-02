@@ -19,9 +19,6 @@
 
 Sensores → ESP32 → Procesamiento → LoRa → Estación tierra → Análisis
 
-
-Repositorio del proyecto **ArasySat**.
-
 ## 📁 Contenido
 
 | Carpeta | Descripción |
