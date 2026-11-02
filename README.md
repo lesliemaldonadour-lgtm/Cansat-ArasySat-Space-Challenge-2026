@@ -28,5 +28,5 @@ Repositorio del proyecto **ArasySat**.
 |---------|-------------|
 | [💻 Códigos](Codigos/Codigos.md) | Códigos del transmisor, receptor y pruebas de cada sensor |
 | [🔩 Componentes](Componentes/Componentes.md) | Lista de componentes utilizados |
-| [📚 Documentación](Documentaci%C3%B3n/) | Datasheets, diseño de la lata y diseño del circuito |
+| [📚 Documentación](Documentaci%C3%B3n/Documentaci%C3%B3n.md) | Datasheets, diseño de la lata y diseño del circuito |
 | [🖥️ Interfaz](Interfaz/Interfaz.md) | Estación terrestre (panel de telemetría) |
