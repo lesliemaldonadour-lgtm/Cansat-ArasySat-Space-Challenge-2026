@@ -2,10 +2,13 @@
 # 🛰️ Cansat ArasySat - RAS / UCAP - Space Challenge 2026
 
 ## Misión Principal: 
-1.Registrar la posición GPS (longitud, latitud y altura). (check)
-2.Transmisión de datos de telemetría o datos de sensores. (check)
-3.Registrar como mínimo tres variables atmosféricas, magnéticas o inerciales. (check) 
-------Variables a medir: Temperatura ambiental, presión atmosférica, porcentaje de humedad, aceleración escalar, orientacion, campo magnético.
+1.Registrar la posición GPS (longitud, latitud y altura).
+
+2.Transmisión de datos de telemetría o datos de sensores. 
+
+3.Registrar como mínimo tres variables atmosféricas, magnéticas o inerciales. 
+
+------Variables a medir: Temperatura ambiental, presión atmosférica, porcentaje de humedad, aceleración escalar, orientación, campo magnético.
 
 ## Misión Secundaria: 
 -Fusión de sensores / Filtro de Kalman
