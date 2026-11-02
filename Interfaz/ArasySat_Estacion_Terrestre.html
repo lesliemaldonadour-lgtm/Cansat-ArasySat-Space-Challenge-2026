@@ -154,7 +154,7 @@ h3{font:500 clamp(14px,1.55vh,17px) var(--sans);color:var(--tx2);margin:0 0 6px}
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>
       <span id="bct">Conectar receptor</span>
     </button>
-    <button class="btn" id="bd" type="button" aria-pressed="false">
+    <button class="btn" id="bd" type="button" aria-pressed="false" title="Reproduce los datos de Simulacion.csv">
       <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 4 20 12 6 20 6 4"/></svg>
       <span>Demo</span>
     </button>
@@ -428,17 +428,28 @@ function btns(){
   if(armed)$('blt').textContent=`¿Limpiar ${pl(k)}?`;
 }
 
+/* ---- Cero del horizonte y del roll ----
+   Valores que marca el paquete con la lata parada sobre su base y en reposo
+   (media de 101 paquetes de ArasySat_20261031_044115.csv: roll -147,14°, pitch -82,79°).
+   Se restan solo al dibujar el horizonte y el roll, para que en reposo queden centrados.
+   El rumbo, la tabla de datos y el CSV exportado siguen usando los valores originales del paquete.
+   Si cambias el montaje del sensor o el firmware, vuelve a medirlos. Con 0 y 0 se ve el valor sin corregir. */
+const ROLL_CERO=-147.14,PITCH_CERO=-82.79;
+const wrap180=a=>((a+540)%360)-180;
+
 /* ---- Dibujo de un paquete ---- */
-function draw(d){
+function draw(d,cal=true){
   const [N,ax,ay,az,gx,gy,gz,mx,my,mz,tAHT,hum,tBMP,pres,alt,lat,lon,gpsAlt,sats,vel,roll,pitch,altK,vvK,fase,vib]=d;
   const hdg=heading(mx,my,mz,roll,pitch);
+  const rollD=cal?wrap180(roll-ROLL_CERO):roll,pitchD=cal?pitch-PITCH_CERO:pitch;   // cal=false: no se corrige (datos de Simulacion.csv ya centrados)
   $('acv').innerHTML=xyz([ax,ay,az],'g',2)+'\n<i class="k">vib</i>:'+f(vib,2)+'g';
   vec('a',ax,ay,az,36);
   $('gyv').innerHTML=xyz([gx,gy,gz],'deg/s',1);
-  $('gh').setAttribute('transform',`translate(0 ${(Number.isFinite(pitch)?pitch:0)*1.6}) rotate(${-(roll||0)} 66 66)`);
-  $('rh').setAttribute('transform',`rotate(${-(roll||0)} 66 66)`);
-  $('rp').setAttribute('transform',`rotate(${-(roll||0)} 66 66)`);
-  $('rov').textContent=`${f(roll)}°\nPitch ${f(pitch)}°`;
+  $('gh').setAttribute('transform',`translate(0 ${(Number.isFinite(pitchD)?pitchD:0)*1.6}) rotate(${-(rollD||0)} 66 66)`);
+  $('rh').setAttribute('transform',`rotate(${-(rollD||0)} 66 66)`);
+  $('rp').setAttribute('transform',`rotate(${-(rollD||0)} 66 66)`);
+  const f0=v=>f(Math.abs(v)<.05?0:v);   // evita mostrar "-0.0" en el cero
+  $('rov').textContent=`${f0(rollD)}°\nPitch ${f0(pitchD)}°`;
   $('mgv').innerHTML=xyz([mx,my,mz],'uT',1);
   vec('m',mx,my,mz,.8);
   $('ar').setAttribute('transform',`rotate(${hdg||0} 66 66)`);
@@ -461,9 +472,9 @@ function draw(d){
     if(!map.getBounds().contains(ll))map.panTo(ll);
   }
 }
-function update(d,src){
+function update(d,src,cal=src!=='demo'){
   n=Number.isFinite(d[0])?d[0]:'?';last=Date.now();
-  countN(d[0]);record(d,src);draw(d);pulse();chip();drawLink();
+  countN(d[0]);record(d,src);draw(d,cal);pulse();chip();drawLink();
 }
 
 /* ---- Limpiar: el primer clic pide confirmación (4 s) para no borrar un vuelo por error ---- */
@@ -475,7 +486,7 @@ function arm(on){
   if(on)armT=setTimeout(()=>arm(false),4000);
 }
 function clearAll(){
-  log.length=0;pend=null;n=null;last=0;t=0;fix=false;rssi=null;snr=null;resetLink();
+  log.length=0;pend=null;n=null;last=0;t=0;simIdx=0;fix=false;rssi=null;snr=null;resetLink();
   if(map){marker.remove();track.setLatLngs([]);map.setView(HOME,6)}
   draw(EMPTY);btns();mapNote();drawLink();
   flash('Datos limpiados.');
@@ -536,29 +547,84 @@ async function connect(){
 }
 $('bc').onclick=()=>port?reader.cancel().catch(()=>{}):connect();
 
-/* ---- Modo demo: ciclo de 70 s con las cinco fases; el campo magnético sale del rumbo y la inclinación simulados ---- */
-function demoPacket(k){
-  const s=k/8,c=(k-1)%70,fase=c<10?0:c<30?1:c<45?2:c<65?3:4;
-  const air=fase>0&&fase<4,a=air?1:.08,R=Math.PI/180;
-  const h=fase===1?(c-10)*5:fase===2?100+1.5*Math.sin(s):fase===3?100-(c-45)*5:0;
-  const vv=fase===1?5:fase===3?-5:0,vib=[.02,.35,.06,.12,.01][fase];
-  const roll=25*a*Math.sin(s),pitch=12*a*Math.cos(s*.7),hd=(k*5)%360;
-  const th=pitch*R,ph=roll*R,ps=hd*R;
-  const a0=20*Math.cos(ps),b0=20*Math.sin(ps),c0=-28;
-  const a1=Math.cos(th)*a0-Math.sin(th)*c0,c1=Math.sin(th)*a0+Math.cos(th)*c0;
-  const tA=24+3*Math.sin(s/5),g=air?1:.05;
-  return [k,
-    -Math.sin(th)+.3*vib*Math.sin(k*5),Math.sin(ph)*Math.cos(th)+.3*vib*Math.sin(k*3),Math.cos(ph)*Math.cos(th)+.3*vib*Math.sin(k*7),
-    30*g*Math.sin(s),20*g*Math.cos(s),10*g*Math.sin(s/2),
-    a1,Math.cos(ph)*b0+Math.sin(ph)*c1,-Math.sin(ph)*b0+Math.cos(ph)*c1,
-    tA,55+10*Math.sin(s/4),tA+.4+.1*Math.sin(s),1004-.12*h+.3*Math.sin(s/6),h+.6*Math.sin(s*2),
-    -25.2637+.002*Math.sin(s/3),-57.5759+.002*Math.cos(s/3),h+3+1.5*Math.sin(s*1.3),air?9:7,air?6+2*Math.sin(s):0,
-    roll,pitch,h,vv,fase,vib];
+/* ---- Modo demo: reproduce, un paquete por segundo, las filas de Simulacion.csv ----
+   El archivo se busca junto a este HTML (hace falta abrir el panel desde un servidor, p. ej. "python -m http.server").
+   Si el navegador no deja leerlo (abriendo el HTML con doble clic), se abre un selector para elegir Simulacion.csv.
+   Formato admitido: separador ; , o tabulador; decimales con coma o punto.
+   - Con encabezado: se toman las columnas por nombre (las mismas de COLS; también rssi_dBm, snr_dB y origen si existen,
+     o sea que sirve el CSV exportado por este panel).
+   - Sin encabezado: 26 columnas en el orden de COLS.
+   Al llegar a la última fila vuelve a empezar. */
+const SIM_FILE='Simulacion.csv';
+let simRows=[],simIdx=0,simBusy=false;
+function parseSim(text){
+  const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(l=>l.trim());
+  if(!lines.length)return [];
+  const cnt=c=>lines[0].split(c).length-1;
+  const sep=[';','\t',','].reduce((m,c)=>cnt(c)>cnt(m)?c:m,',');
+  const num=v=>{const x=parseFloat(String(v??'').trim().replace(',','.'));return Number.isFinite(x)?x:NaN};
+  const cells=l=>l.split(sep).map(s=>s.trim().replace(/^"|"$/g,''));
+  const first=cells(lines[0]);
+  const hasHead=first.some(c=>c!==''&&!Number.isFinite(num(c)));
+  const out=[];
+  if(hasHead){
+    const H=first.map(c=>c.toLowerCase()),ix=k=>H.indexOf(k.toLowerCase());
+    const map=COLS.map(ix),ir=ix('rssi_dBm'),is=ix('snr_dB'),io=ix('origen');
+    if(map[0]<0)throw new Error('El encabezado no tiene la columna "paquete".');
+    for(const l of lines.slice(1)){
+      const c=cells(l),d=map.map(i=>i<0?NaN:num(c[i]));
+      if(!Number.isFinite(d[0]))continue;
+      out.push({d,r:ir<0?null:num(c[ir]),s:is<0?null:num(c[is]),cal:io>=0&&c[io]!=='demo'});
+    }
+  }else{
+    for(const l of lines){
+      const c=cells(l);
+      if(c.length<NF)continue;
+      out.push({d:c.slice(0,NF).map(num),r:null,s:null,cal:false});
+    }
+  }
+  return out;
 }
-function toggleDemo(){
-  if(demo){clearInterval(demo);demo=null;$('bd').classList.remove('on');$('bd').setAttribute('aria-pressed','false');last=0;rssi=null;snr=null;drawLink();chip();return}
-  $('bd').classList.add('on');$('bd').setAttribute('aria-pressed','true');resetLink();pend=null;
-  demo=setInterval(()=>{t++;rssi=-68-t%7;snr=9+(t%5)/2;update(demoPacket(t),'demo')},1000);
+function pickSim(){
+  return new Promise(res=>{
+    const inp=document.createElement('input');
+    inp.type='file';inp.accept='.csv,text/csv,text/plain';
+    inp.onchange=async()=>{const fl=inp.files[0];res(fl?await fl.text():null)};
+    inp.addEventListener('cancel',()=>res(null));
+    inp.click();
+  });
+}
+async function loadSim(){
+  let text=null;
+  try{const r=await fetch(SIM_FILE,{cache:'no-store'});if(r.ok)text=await r.text()}catch(e){}
+  if(text===null)text=await pickSim();
+  if(text===null){flash(`No se cargó ${SIM_FILE}.`);return false}
+  try{simRows=parseSim(text)}catch(e){flash(e.message);return false}
+  if(!simRows.length){flash(`${SIM_FILE} no tiene filas válidas.`);return false}
+  flash(`${SIM_FILE}: ${pl(simRows.length)} cargados.`);
+  return true;
+}
+function simTick(){
+  const row=simRows[simIdx];
+  simIdx=(simIdx+1)%simRows.length;
+  rssi=row.r;snr=row.s;
+  update(row.d,'demo',row.cal);
+}
+function stopDemo(){
+  clearInterval(demo);demo=null;
+  $('bd').classList.remove('on');$('bd').setAttribute('aria-pressed','false');
+  last=0;rssi=null;snr=null;drawLink();chip();
+}
+async function toggleDemo(){
+  if(demo){stopDemo();return}
+  if(simBusy)return;
+  simBusy=true;
+  const ok=simRows.length||await loadSim();
+  simBusy=false;
+  if(!ok||demo)return;
+  $('bd').classList.add('on');$('bd').setAttribute('aria-pressed','true');resetLink();pend=null;simIdx=0;
+  simTick();
+  demo=setInterval(simTick,1000);
 }
 $('bd').onclick=toggleDemo;
 
@@ -576,4 +642,3 @@ if(lg.complete&&lg.naturalWidth===0)logoFail();
 </script>
 </body>
 </html>
-
